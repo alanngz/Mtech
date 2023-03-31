@@ -1,0 +1,95 @@
+﻿@page "/"
+@page "/employees"
+@using Mtech.Shared;
+@inject HttpClient httpClient
+@inject IJSRuntime jsRuntime
+
+
+<h1>Employees</h1>
+
+@if (employees == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (employees.Count == 0)
+{
+    <p>No employees found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th></th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Last Name</th>
+                <th>RFC</th>
+                <th>Born Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var employee in employees)
+            {
+                <tr>
+                    <td>
+                        <a href="@($"/Employees/edit/{employee.ID}")" class="btn btn-primary">Edit</a>
+                        <input type="button" class="btn btn-primary" value="Delete" onclick="@(() => DeleteEmployee(employee.ID))">
+                    </td>
+                    <td>@employee.ID</td>
+                    <td>@employee.Name</td>
+                    <td>@employee.LastName</td>
+                    <td>@employee.RFC</td>
+                    <td>@employee.BornDate.ToShortDateString()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+}
+<a href="/Employees/create" class="btn btn-primary">Create New Employee</a>
+
+@code {
+    private List<Employee>? employees;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployees();
+    }
+
+    private async Task LoadEmployees()
+    {
+        try
+        {
+            // Call the employee controller to retrieve a list of employees
+            employees = await httpClient.GetFromJsonAsync<List<Employee>>("api/Employee");
+        }
+        catch (Exception ex)
+        {
+            await Log(ex.Message);
+
+        }
+    }
+
+    private async Task DeleteEmployee(int id)
+    {
+        var response = await httpClient.DeleteAsync($"api/Employee/{id}");
+        Log(response.IsSuccessStatusCode.ToString());
+
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadEmployees();
+            StateHasChanged();
+        }
+        else
+        {
+            Log(await response.Content.ReadAsStringAsync());
+        }
+    }
+
+
+    async Task Log(string m)
+    {
+        await jsRuntime.InvokeAsync<object>("console.log", m);
+    }
+}

@@ -1,0 +1,110 @@
+﻿@page "/employees/create"
+@page "/employees/edit/{id:int}"
+@using Mtech.Shared;
+
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
+@inject IJSRuntime jsRuntime
+
+
+<h1>@(IsEdit ? "Edit Employee" : "Create Employee")</h1>
+
+@if (ErrorMessage != null)
+{
+    <p class="text-danger">@ErrorMessage</p>
+}
+
+<EditForm Model="Employee" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="name">Name</label>
+        <InputText class="form-control" id="name" @bind-Value="Employee.Name" />
+        <ValidationMessage For="@(() => Employee.Name)" />
+    </div>
+
+    <div class="form-group">
+        <label for="lastName">Last Name</label>
+        <InputText class="form-control" id="lastName" @bind-Value="Employee.LastName" />
+        <ValidationMessage For="@(() => Employee.LastName)" />
+    </div>
+
+    <div class="form-group">
+        <label for="rfc">RFC</label>
+        <InputText class="form-control" id="rfc" @bind-Value="Employee.RFC" />
+        <ValidationMessage For="@(() => Employee.RFC)" />
+    </div>
+
+    <div class="form-group">
+        <label for="bornDate">Born Date</label>
+        <InputDate class="form-control" id="bornDate" @bind-Value="Employee.BornDate" />
+        <ValidationMessage For="@(() => Employee.BornDate)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">@SaveButtonText</button>
+    <button type="button" class="btn btn-secondary" @onclick="@Cancel">Cancel</button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private bool IsEdit => Id.HasValue;
+
+    private Employee Employee { get; set; } = new Employee();
+
+    private string SaveButtonText => IsEdit ? "Save Changes" : "Create";
+
+    private string ErrorMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEdit)
+        {
+            try
+            {
+                var response = await HttpClient.GetAsync($"api/Employee/{Id}");
+                response.EnsureSuccessStatusCode();
+                Employee = await response.Content.ReadFromJsonAsync<Employee>();
+            }
+            catch (HttpRequestException ex)
+            {
+                ErrorMessage = ex.Message;
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        HttpResponseMessage response;
+        if (IsEdit)
+        {
+            response = await HttpClient.PutAsJsonAsync($"api/Employee/{Employee.ID}", Employee);
+        }
+        else
+        {
+            response = await HttpClient.PostAsJsonAsync("api/Employee", Employee);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            ErrorMessage = await response.Content.ReadAsStringAsync();
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/employees");
+        }
+
+    }
+
+    async Task Log(string m)
+    {
+        await jsRuntime.InvokeAsync<object>("console.log", m);
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/employees");
+    }
+}
